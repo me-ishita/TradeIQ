@@ -17,18 +17,24 @@ function Row({ label, value, color = C.text1 }: { label: string; value: string; 
 export function Scores({ studentId }: { studentId: string }) {
   const [scores, setScores] = useState<BackendWeeklyScore[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!studentId) return;
     analytics
       .getScores(studentId)
       .then((res) => setScores(res.scores))
-      .catch(() => setScores([]))
+      .catch(() => {
+        setError(true);
+        setScores([]);
+      })
       .finally(() => setLoading(false));
   }, [studentId]);
 
   const cumulativeScore = scores.reduce((sum, s) => sum + s.final_score, 0);
-  const latestRank = scores.length > 0 ? scores[0].rank_position : null;
+  const latestRank = scores.length > 0
+    ? scores.reduce((a, b) => (a.week_number > b.week_number ? a : b)).rank_position
+    : null;
 
   return (
     <View style={{ gap: 16 }}>
@@ -41,6 +47,12 @@ export function Scores({ studentId }: { studentId: string }) {
 
       {loading ? (
         <ActivityIndicator color={C.cyan} />
+      ) : error ? (
+        <GlassCard style={{ padding: 16 }} accent={C.red}>
+          <Text selectable style={{ color: C.red, fontSize: 13 }}>
+            Failed to load scores. Please try again.
+          </Text>
+        </GlassCard>
       ) : scores.length === 0 ? (
         <GlassCard style={{ padding: 16 }} accent={C.cyan}>
           <Text selectable style={{ color: C.text2, fontSize: 13 }}>
