@@ -32,9 +32,22 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  const data = await res.json();
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
-  return data as T;
+
+  if (!res.ok) {
+    const contentType = res.headers.get("content-type");
+    let errorMsg = `HTTP ${res.status}`;
+    if (contentType?.includes("application/json")) {
+      try {
+        const errData = await res.json();
+        errorMsg = (errData as { error?: string }).error ?? errorMsg;
+      } catch {
+        // JSON parse failed — use default HTTP status message
+      }
+    }
+    throw new Error(errorMsg);
+  }
+
+  return res.json() as Promise<T>;
 }
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
