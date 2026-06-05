@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { assetOptions, C, font, glossary, glossaryTerms, sectorOptions } from "../constants";
 import { getPortfolioDraft, savePortfolioDraft } from "../portfolio-store";
+import { portfolio } from "../api";
 import type { Position, PortfolioSetup, UserData } from "../types";
 import { wordCount } from "../utils";
 import { AppButton, Field, GlassCard, Pill, SectionTitle } from "../components/ui";
@@ -158,6 +159,35 @@ export function PortfolioBuilder({ userData }: { userData: UserData | null }) {
     setPositions(draft.positions);
     setDraftStatus(message);
   };
+
+  async function submitToBackend() {
+    if (!userData?.studentId) {
+      setDraftStatus("Not logged in.");
+      return;
+    }
+    setDraftStatus("Submitting trades to server...");
+    try {
+      for (const position of positions) {
+        const rawPrice = parseFloat(position.buyPrice.replace(/[^0-9.]/g, ""));
+        const rawAmount = parseFloat(position.amountInvested.replace(/[^0-9.]/g, ""));
+        const quantity =
+          rawPrice > 0 && rawAmount > 0 ? Math.max(1, Math.round(rawAmount / rawPrice)) : 1;
+
+        await portfolio.executeTrade({
+          stock_ticker: position.stockTicker,
+          trade_type: position.tradeType === "Buy" ? "BUY" : "SELL",
+          quantity,
+          tag1: position.tag1 === "(optional)" ? undefined : position.tag1 || undefined,
+          tag2: position.tag2 === "(optional)" ? undefined : position.tag2 || undefined,
+          tag3: position.tag3 === "(optional)" ? undefined : position.tag3 || undefined,
+          thesis: position.thesis || undefined,
+        });
+      }
+      setDraftStatus(`${positions.length} trade(s) submitted successfully.`);
+    } catch (err) {
+      setDraftStatus(`Error: ${err instanceof Error ? err.message : "Submission failed"}`);
+    }
+  }
 
   const enrichPosition = async (id: string, ticker: string) => {
     setQuoteStatus(`Fetching ${ticker.toUpperCase()} quote...`);
@@ -334,7 +364,7 @@ export function PortfolioBuilder({ userData }: { userData: UserData | null }) {
         </View>
         <View style={{ flex: 1 }}>
           <AppButton label="Submit" onPress={() => {
-            void saveDraft("Portfolio setup and trade log saved.");
+            void submitToBackend();
             setSubmitted(true);
           }} disabled={overLimit} />
         </View>
