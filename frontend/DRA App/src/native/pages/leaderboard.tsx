@@ -76,10 +76,10 @@ export function Leaderboard() {
               </View>
               <View style={{ alignItems: "flex-end" }}>
                 <Text selectable style={{ color: C.text0, fontFamily: font.mono, fontSize: 15 }}>
-                  {entry.final_score.toFixed(1)}
+                  {(entry.final_score ?? 0).toFixed(1)}
                 </Text>
                 <Text selectable style={{ color: C.green, fontFamily: font.mono, fontSize: 11 }}>
-                  +{entry.portfolio_score.toFixed(1)} pts
+                  +{(entry.portfolio_score ?? 0).toFixed(1)} pts
                 </Text>
               </View>
             </View>
