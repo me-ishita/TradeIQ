@@ -3,20 +3,25 @@ const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5000";
 // ── Token storage ──────────────────────────────────────────────────────────────
 const TOKEN_KEY = "dra.jwtToken";
 
+// In-memory fallback for React Native (no window.localStorage)
+let _memToken: string | null = null;
+
 export function getToken(): string | null {
   if (typeof window !== "undefined" && window.localStorage) {
     return window.localStorage.getItem(TOKEN_KEY);
   }
-  return null;
+  return _memToken;
 }
 
 export function setToken(token: string): void {
+  _memToken = token;
   if (typeof window !== "undefined" && window.localStorage) {
     window.localStorage.setItem(TOKEN_KEY, token);
   }
 }
 
 export function clearToken(): void {
+  _memToken = null;
   if (typeof window !== "undefined" && window.localStorage) {
     window.localStorage.removeItem(TOKEN_KEY);
   }

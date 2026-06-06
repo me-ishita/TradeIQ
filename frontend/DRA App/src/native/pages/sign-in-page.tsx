@@ -6,7 +6,7 @@ import { C, font } from "../constants";
 import type { UserData } from "../types";
 import { AppButton, Field, GlassCard, HeaderMini } from "../components/ui";
 
-export function SignInPage({ onSubmit, onBack }: { onSubmit: (email: string, password: string) => Promise<UserData | null>; onBack: () => void }) {
+export function SignInPage({ onSubmit, onBack }: { onSubmit: (email: string, password: string) => Promise<UserData | string | null>; onBack: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -14,8 +14,10 @@ export function SignInPage({ onSubmit, onBack }: { onSubmit: (email: string, pas
 
   const handleSubmit = async () => {
     setSubmitting(true);
-    const user = await onSubmit(email, password);
-    if (!user) setError("Invalid email or password.");
+    const result = await onSubmit(email, password);
+    if (!result || typeof result === "string") {
+      setError(typeof result === "string" ? result : "Sign in failed. Check your connection.");
+    }
     setSubmitting(false);
   };
 

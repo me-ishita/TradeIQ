@@ -43,11 +43,15 @@ export default function ChallengeApp() {
       <SignInPage
         onBack={() => setFlow("landing")}
         onSubmit={async (email, password) => {
-          const user = await signInUser(email, password);
-          if (!user) return null;
-          setUserData(user);
-          setFlow("app");
-          return user;
+          try {
+            const user = await signInUser(email, password);
+            if (!user) return null;
+            setUserData(user);
+            setFlow("app");
+            return user;
+          } catch (err) {
+            return err instanceof Error ? err.message : "Sign in failed";
+          }
         }}
       />
     );

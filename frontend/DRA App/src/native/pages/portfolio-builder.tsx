@@ -64,11 +64,13 @@ function StockSearchField({
   const [results, setResults] = useState<StockSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleChange = (text: string) => {
     setQuery(text.toUpperCase());
     setShowResults(false);
+    setSearchError("");
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (text.length < 2) {
       setResults([]);
@@ -80,8 +82,9 @@ function StockSearchField({
         const res = await market.search(text);
         setResults(res.results.slice(0, 6));
         setShowResults(res.results.length > 0);
-      } catch {
+      } catch (err) {
         setResults([]);
+        setSearchError(err instanceof Error ? err.message : "Search failed");
       } finally {
         setSearching(false);
       }
@@ -142,6 +145,9 @@ function StockSearchField({
         />
         {searching && <ActivityIndicator size="small" color={C.cyan} />}
       </View>
+      {searchError ? (
+        <Text selectable style={{ color: C.red, fontSize: 11, marginTop: 2 }}>{searchError}</Text>
+      ) : null}
       {showResults && results.length > 0 && (
         <View style={{ borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginTop: 2 }}>
           {results.map((result, idx) => (

@@ -103,18 +103,14 @@ export async function saveRegisteredUser(user: UserData): Promise<UserData> {
 
 // Note: signature changed — now accepts email instead of studentId to match /auth/login
 export async function signInUser(email: string, password: string): Promise<UserData | null> {
-  try {
-    const { user: backendUser, token } = await auth.login(email, password);
-    setToken(token);
-    const cachedUser = backendUserToUserData(backendUser);
-    const existing = await readUsers();
-    const deduped = existing.filter((u) => u.studentId !== cachedUser.studentId);
-    await writeUsers([...deduped, cachedUser]);
-    await setActiveStudentId(cachedUser.studentId);
-    return cachedUser;
-  } catch {
-    return null;
-  }
+  const { user: backendUser, token } = await auth.login(email, password);
+  setToken(token);
+  const cachedUser = backendUserToUserData(backendUser);
+  const existing = await readUsers();
+  const deduped = existing.filter((u) => u.studentId !== cachedUser.studentId);
+  await writeUsers([...deduped, cachedUser]);
+  await setActiveStudentId(cachedUser.studentId);
+  return cachedUser;
 }
 
 export async function setActiveStudentId(studentId: string) {
