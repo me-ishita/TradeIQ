@@ -110,6 +110,60 @@ def get_current_price(ticker):
 
 
 # ─────────────────────────────────────────
+# Index/ticker definitions
+# ─────────────────────────────────────────
+
+INDICES = [
+    {"name": "S&P 500",       "ticker": "^GSPC"},
+    {"name": "NASDAQ",        "ticker": "^IXIC"},
+    {"name": "DOW",           "ticker": "^DJI"},
+    {"name": "AAPL",          "ticker": "AAPL"},
+    {"name": "MSFT",          "ticker": "MSFT"},
+    {"name": "NVDA",          "ticker": "NVDA"},
+    {"name": "AMZN",          "ticker": "AMZN"},
+    {"name": "TSLA",          "ticker": "TSLA"},
+    {"name": "USD/INR",       "ticker": "INR=X"},
+    {"name": "GOLD",          "ticker": "GC=F"},
+    {"name": "NIFTY 50",      "ticker": "^NSEI"},
+    {"name": "SENSEX",        "ticker": "^BSESN"},
+    {"name": "NIFTY IT",      "ticker": "^CNXIT"},
+    {"name": "NIFTY PHARMA",  "ticker": "^CNXPHARMA"},
+]
+
+
+# ─────────────────────────────────────────
+# GET /market/indices
+# Returns: price + % change for all tracked indices/tickers
+# ─────────────────────────────────────────
+
+@market_bp.get("/indices")
+@jwt_required()
+def get_indices():
+    import yfinance as yf
+    results = []
+    for entry in INDICES:
+        try:
+            hist = yf.Ticker(entry["ticker"]).history(period="5d")
+            if hist.empty or len(hist) < 2:
+                continue
+            today_close = float(hist["Close"].iloc[-1])
+            prev_close  = float(hist["Close"].iloc[-2])
+            change_pct  = (today_close - prev_close) / prev_close * 100
+            price_str   = f"{today_close:,.0f}" if today_close >= 1000 else f"{today_close:,.2f}"
+            change_str  = f"{'+' if change_pct >= 0 else ''}{change_pct:.2f}%"
+            results.append({
+                "name":   entry["name"],
+                "ticker": entry["ticker"],
+                "price":  price_str,
+                "change": change_str,
+                "up":     change_pct >= 0,
+            })
+        except Exception:
+            continue
+    return jsonify({"indices": results}), 200
+
+
+# ─────────────────────────────────────────
 # GET /market/search?q=<query>
 # Returns: list of matching equity results from Yahoo Finance
 # ─────────────────────────────────────────
