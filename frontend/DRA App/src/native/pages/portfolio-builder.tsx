@@ -9,14 +9,13 @@ import type { Position, PortfolioSetup, UserData } from "../types";
 import { wordCount } from "../utils";
 import { AppButton, Field, GlassCard, Pill, SectionTitle } from "../components/ui";
 
-const totalCapital = 10000;
 const tagOptions = ["Earnings Play", "Macro Tailwind", "Valuation Gap", "Momentum", "Risk Hedge", "(optional)"];
 
 function today() {
   return new Date().toLocaleDateString("en-GB");
 }
 
-function makeTrade(studentId: string, index: number): Position {
+function makeTrade(studentId: string, index: number, capital: number): Position {
   return {
     id: `${Date.now()}-${index}`,
     tradeId: `TRD${String(index + 1).padStart(6, "0")}`,
@@ -27,7 +26,7 @@ function makeTrade(studentId: string, index: number): Position {
     stockName: "",
     sector: "Technology",
     allocationPercent: 10,
-    amountInvested: "$1,000",
+    amountInvested: `$${Math.round(capital * 0.1).toLocaleString()}`,
     buyPrice: "",
     currentSellPrice: "",
     tradeType: "Buy",
@@ -187,7 +186,7 @@ export function PortfolioBuilder({ userData }: { userData: UserData | null }) {
   const studentId = userData?.studentId || "202600000000";
   const { width } = useWindowDimensions();
   const isNarrow = width < 430;
-  const [positions, setPositions] = useState<Position[]>([makeTrade(studentId, 0)]);
+  const [positions, setPositions] = useState<Position[]>([makeTrade(studentId, 0, capitalAmount)]);
   const [setup, setSetup] = useState<PortfolioSetup>({
     studentId,
     totalCapital: "$10,000",
@@ -195,6 +194,7 @@ export function PortfolioBuilder({ userData }: { userData: UserData | null }) {
     investmentHorizon: "1 Month",
     competitionRound: "June 2026",
   });
+  const [capitalAmount, setCapitalAmount] = useState(10000);
   const [activeGlossary, setActiveGlossary] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [draftStatus, setDraftStatus] = useState("");
@@ -206,7 +206,7 @@ export function PortfolioBuilder({ userData }: { userData: UserData | null }) {
       if (!active) return;
       if (draft) {
         setSetup(draft.setup);
-        setPositions(draft.positions.length ? draft.positions : [makeTrade(studentId, 0)]);
+        setPositions(draft.positions.length ? draft.positions : [makeTrade(studentId, 0, capitalAmount)]);
         setDraftStatus(`Draft restored from ${new Date(draft.updatedAt).toLocaleString()}.`);
       } else {
         setSetup({
@@ -216,7 +216,7 @@ export function PortfolioBuilder({ userData }: { userData: UserData | null }) {
           investmentHorizon: "1 Month",
           competitionRound: "June 2026",
         });
-        setPositions([makeTrade(studentId, 0)]);
+        setPositions([makeTrade(studentId, 0, capitalAmount)]);
         setDraftStatus("");
       }
     });
@@ -224,6 +224,16 @@ export function PortfolioBuilder({ userData }: { userData: UserData | null }) {
       active = false;
     };
   }, [studentId]);
+
+  useEffect(() => {
+    if (!userData?.studentId) return;
+    portfolio.getSummary(userData.studentId)
+      .then((s) => {
+        setCapitalAmount(s.total_capital);
+        setSetup((prev) => ({ ...prev, totalCapital: `$${s.total_capital.toLocaleString()}` }));
+      })
+      .catch(() => {});
+  }, [userData?.studentId]);
 
   const totalAllocation = positions.reduce((sum, position) => sum + (Number(position.allocationPercent) || 0), 0);
   const uniqueSectors = new Set(positions.map((position) => position.sector).filter(Boolean)).size;
@@ -236,13 +246,14 @@ export function PortfolioBuilder({ userData }: { userData: UserData | null }) {
       prev.map((position) => {
         if (position.id !== id) return position;
         const next = { ...position, [field]: value };
-        if (field === "allocationPercent") next.amountInvested = `$${Math.round((totalCapital * Number(value || 0)) / 100).toLocaleString()}`;
+        if (field === "allocationPercent") next.amountInvested = `$${Math.round((capitalAmount * Number(value || 0)) / 100).toLocaleString()}`;
         return next;
       }),
     );
   };
 
-  const addPosition = () => setPositions((prev) => [...prev, makeTrade(studentId, prev.length)]);
+  const addPosition = () =>
+    setPositions((prev) => [...prev, makeTrade(studentId, prev.length, capitalAmount)]);
   const removePosition = (id: string) => setPositions((prev) => prev.filter((position) => position.id !== id));
 
   const saveDraft = async (message = "Draft saved. Your portfolio will be restored when you sign in again.") => {
