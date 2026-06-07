@@ -2,10 +2,35 @@ import { TrendingDown, TrendingUp } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { C, font } from "../constants";
-import { portfolio } from "../api";
-import type { PortfolioSummary } from "../api";
+import { market, portfolio } from "../api";
+import type { MarketIndex, PortfolioSummary } from "../api";
 import { Legend, LineChart } from "../components/charts";
 import { GlassCard, Progress, SectionTitle } from "../components/ui";
+import { getMarketIndices } from "../market-store";
+
+const CHART_POINTS = 7;
+const INDIAN_TICKERS = ["^NSEI", "^BSESN", "^CNXIT", "^CNXPHARMA"];
+
+function sampleAndNormalize(records: { Close: number }[], points: number): number[] {
+  if (records.length === 0) return [];
+  const step = Math.max(1, Math.floor((records.length - 1) / (points - 1)));
+  const sampled: number[] = [];
+  for (let i = 0; i < points - 1; i++) {
+    sampled.push(records[Math.min(i * step, records.length - 1)].Close);
+  }
+  sampled.push(records[records.length - 1].Close);
+  const base = sampled[0];
+  return sampled.map((c) => Math.round((c / base) * 10000));
+}
+
+function portfolioLine(startCapital: number, currentValue: number, points: number): number[] {
+  const step = (currentValue - startCapital) / (points - 1);
+  return Array.from({ length: points }, (_, i) => Math.round(startCapital + step * i));
+}
+
+function isoDate(d: Date): string {
+  return d.toISOString().split("T")[0];
+}
 
 function StatCard({ label, value, sub, color = C.cyan }: { label: string; value: string; sub: string; color?: string }) {
   return (
@@ -26,6 +51,9 @@ export function Dashboard({ userName, studentId }: { userName: string; studentId
   const tabs = ["overview", "scoring", "market", "tasks"] as const;
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [marketIndices, setMarketIndices] = useState<MarketIndex[]>([]);
+  const [chartPerf, setChartPerf] = useState<number[]>([]);
+  const [chartBench, setChartBench] = useState<number[]>([]);
 
   useEffect(() => {
     if (!studentId) return;
@@ -35,6 +63,27 @@ export function Dashboard({ userName, studentId }: { userName: string; studentId
       .catch(() => null)
       .finally(() => setLoading(false));
   }, [studentId]);
+
+  useEffect(() => {
+    getMarketIndices()
+      .then(setMarketIndices)
+      .catch(() => setMarketIndices([]));
+  }, []);
+
+  useEffect(() => {
+    if (!studentId) return;
+    const end = new Date();
+    const start = new Date(end.getTime() - 49 * 24 * 60 * 60 * 1000);
+    market
+      .getBenchmark(isoDate(start), isoDate(end))
+      .then((data) => setChartBench(sampleAndNormalize(data.benchmark, CHART_POINTS)))
+      .catch(() => setChartBench([]));
+  }, [studentId]);
+
+  useEffect(() => {
+    if (!summary) return;
+    setChartPerf(portfolioLine(summary.total_capital, summary.total_portfolio, CHART_POINTS));
+  }, [summary]);
 
   const portfolioValue = summary
     ? `$${summary.total_portfolio.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -97,7 +146,7 @@ export function Dashboard({ userName, studentId }: { userName: string; studentId
         <>
           <GlassCard style={{ padding: 16 }} accent={C.cyan}>
             <SectionTitle title="Portfolio Overview" accent={C.cyan} />
-            <LineChart />
+            <LineChart perfData={chartPerf} benchmarkData={chartBench} />
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 18 }}>
               <Legend color={C.cyan} label="Portfolio" />
               <Legend color={C.text2} label="Benchmark" />
@@ -115,28 +164,46 @@ export function Dashboard({ userName, studentId }: { userName: string; studentId
 
       {tab === "market" ? (
         <GlassCard style={{ padding: 16, gap: 8 }} accent={C.cyan}>
-          {(
-            [
-              ["NIFTY 50", "24,386", "+0.84%", true],
-              ["SENSEX", "80,125", "+0.71%", true],
-              ["NIFTY IT", "38,940", "+1.29%", true],
-              ["NIFTY PHARMA", "19,420", "-0.22%", false],
-            ] as const
-          ).map(([name, price, change, up]) => (
-            <View
-              key={name}
-              style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomColor: C.border, borderBottomWidth: 1 }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                {up ? <TrendingUp size={15} color={C.green} /> : <TrendingDown size={15} color={C.red} />}
-                <Text selectable style={{ color: C.text1, fontFamily: font.medium, fontSize: 13 }}>{name}</Text>
+          {marketIndices
+            .filter((idx) => INDIAN_TICKERS.includes(idx.ticker))
+            .map((idx) => (
+              <View
+                key={idx.ticker}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 10,
+                  borderBottomColor: C.border,
+                  borderBottomWidth: 1,
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  {idx.up ? (
+                    <TrendingUp size={15} color={C.green} />
+                  ) : (
+                    <TrendingDown size={15} color={C.red} />
+                  )}
+                  <Text selectable style={{ color: C.text1, fontFamily: font.medium, fontSize: 13 }}>
+                    {idx.name}
+                  </Text>
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text selectable style={{ color: C.text0, fontFamily: font.mono, fontSize: 13 }}>
+                    {idx.price}
+                  </Text>
+                  <Text
+                    selectable
+                    style={{ color: idx.up ? C.green : C.red, fontFamily: font.mono, fontSize: 11 }}
+                  >
+                    {idx.change}
+                  </Text>
+                </View>
               </View>
-              <View style={{ alignItems: "flex-end" }}>
-                <Text selectable style={{ color: C.text0, fontFamily: font.mono, fontSize: 13 }}>{price}</Text>
-                <Text selectable style={{ color: up ? C.green : C.red, fontFamily: font.mono, fontSize: 11 }}>{change}</Text>
-              </View>
-            </View>
-          ))}
+            ))}
+          {marketIndices.filter((idx) => INDIAN_TICKERS.includes(idx.ticker)).length === 0 && (
+            <Text style={{ color: C.text2, fontSize: 12 }}>Loading indices…</Text>
+          )}
         </GlassCard>
       ) : null}
 
