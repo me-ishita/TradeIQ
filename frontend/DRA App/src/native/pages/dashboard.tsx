@@ -164,9 +164,12 @@ export function Dashboard({ userName, studentId }: { userName: string; studentId
 
       {tab === "market" ? (
         <GlassCard style={{ padding: 16, gap: 8 }} accent={C.cyan}>
-          {marketIndices
-            .filter((idx) => INDIAN_TICKERS.includes(idx.ticker))
-            .map((idx) => (
+          {(() => {
+            const indian = marketIndices.filter((idx) => INDIAN_TICKERS.includes(idx.ticker));
+            if (indian.length === 0) {
+              return <Text style={{ color: C.text2, fontSize: 12 }}>Loading indices…</Text>;
+            }
+            return indian.map((idx) => (
               <View
                 key={idx.ticker}
                 style={{
@@ -200,10 +203,8 @@ export function Dashboard({ userName, studentId }: { userName: string; studentId
                   </Text>
                 </View>
               </View>
-            ))}
-          {marketIndices.filter((idx) => INDIAN_TICKERS.includes(idx.ticker)).length === 0 && (
-            <Text style={{ color: C.text2, fontSize: 12 }}>Loading indices…</Text>
-          )}
+            ));
+          })()}
         </GlassCard>
       ) : null}
 
