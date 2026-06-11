@@ -39,28 +39,32 @@ export function Scores({ studentId }: { studentId: string }) {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (!studentId) return;
-    setLoading(true);
-    setError(false);
-    analytics
-      .computeScores(studentId)
-      .catch(() => null)
-      .then(() => analytics.getScores(studentId))
-      .then((res) => {
-        setScores(res.scores);
-        setMetrics(res.latest_metrics);
-      })
-      .catch(() => {
-        setError(true);
-        setScores([]);
-        setMetrics(null);
-      })
-      .finally(() => setLoading(false));
-  }, [studentId]);
+  if (!studentId) return;
+
+  setLoading(true);
+  setError(false);
+
+  analytics
+    .getScores(studentId)
+    .then((res) => {
+      setScores(res.scores);
+      setMetrics(res.latest_metrics);
+    })
+    .catch(() => {
+      setError(true);
+      setScores([]);
+      setMetrics(null);
+    })
+    .finally(() => setLoading(false));
+}, [studentId]);
 
   const cumulativeScore = scores.reduce((sum, s) => sum + s.final_score, 0);
   const latestRank = scores.length > 0
     ? scores.reduce((a, b) => (a.week_number > b.week_number ? a : b)).rank_position
+    : null;
+
+  const latestWeekScore = scores.length > 0
+    ? scores.reduce((a, b) => (a.week_number > b.week_number ? a : b))
     : null;
 
   return (
@@ -75,7 +79,17 @@ export function Scores({ studentId }: { studentId: string }) {
       <GlassCard style={{ padding: 16, gap: 8 }} accent={C.cyan}>
         <SectionTitle title="How Scores Are Calculated" accent={C.cyan} />
         <Text selectable style={{ color: C.text2, fontSize: 12, lineHeight: 18 }}>
-          No active holdings keeps the slate at 0/100. Once trades are active, Portfolio Perf uses live return on capital from the $10,000 base, Risk Gov rewards sector diversity and 3+ positions, Thesis Qual starts at 15 until thesis review then uses AI/local review, Execution starts at 8, and Strategy rises from 7 as holdings become balanced.
+          Clean Slate: If no active holdings exist, all scores remain 0/100.
+
+          Portfolio Score (40): Based on Return on Capital relative to the initial $10,000 virtual budget.
+
+          Risk Score (20): Based on diversification across sectors. Three or more sectors receive full points.
+
+          Thesis Score (20): Uses AI evaluation when available. Active portfolios awaiting AI review receive a baseline score of 15.
+
+          Execution Score (10): Baseline execution quality score of 8.
+
+          Strategy Score (10): Rewards diversification across multiple active positions.
         </Text>
       </GlassCard>
 
@@ -136,16 +150,16 @@ export function Scores({ studentId }: { studentId: string }) {
                   Total Score
                 </Text>
                 <Text selectable style={{ color: C.cyan, fontFamily: font.mono, fontSize: 30 }}>
-                  {Math.round(scores[0]?.final_score ?? 0)}<Text style={{ color: C.text2, fontSize: 13 }}>/100</Text>
+                  {Math.round(latestWeekScore?.final_score ?? 0)}<Text style={{ color: C.text2, fontSize: 13 }}>/100</Text>
                 </Text>
               </View>
             </View>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 14 }}>
-              <ScoreMetricCard label="Portfolio Perf" value={scores[0]?.portfolio_score ?? 0} max={40} color={C.green} />
-              <ScoreMetricCard label="Risk Gov" value={scores[0]?.risk_score ?? 0} max={20} color={C.cyan} />
-              <ScoreMetricCard label="Thesis Qual" value={scores[0]?.thesis_score ?? 0} max={20} color={C.purple} />
-              <ScoreMetricCard label="Execution" value={scores[0]?.execution_score ?? 0} max={10} color={C.gold} />
-              <ScoreMetricCard label="Strategy" value={scores[0]?.strategy_score ?? 0} max={10} color={C.red} />
+              <ScoreMetricCard label="Portfolio Perf" value={latestWeekScore?.portfolio_score ?? 0} max={40} color={C.green} />
+              <ScoreMetricCard label="Risk Gov" value={latestWeekScore?.risk_score ?? 0} max={20} color={C.cyan} />
+              <ScoreMetricCard label="Thesis Qual" value={latestWeekScore?.thesis_score ?? 0} max={20} color={C.purple} />
+              <ScoreMetricCard label="Execution" value={latestWeekScore?.execution_score ?? 0} max={10} color={C.gold} />
+              <ScoreMetricCard label="Strategy" value={latestWeekScore?.strategy_score ?? 0} max={10} color={C.red} />
             </View>
           </GlassCard>
 

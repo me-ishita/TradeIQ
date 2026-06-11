@@ -285,20 +285,33 @@ def _refresh_active_holdings(holdings):
 
 
 def _local_thesis_points(thesis_texts):
+    """
+    Thesis Score Rules
+
+    - No thesis submitted = 0
+    - Thesis submitted but AI unavailable = baseline 15
+    - AI available = AI score out of 20
+    """
+
     if not thesis_texts:
-        return 15.0
+        return 0.0
 
     thesis_inputs = _score_thesis_texts([
         type("ThesisTrade", (), {"thesis": text})()
         for text in thesis_texts
     ])
-    raw_five_point_score = (
+
+    raw_score = (
         thesis_inputs["clarity"]
         + thesis_inputs["financial_logic"]
         + thesis_inputs["risk_awareness"]
         + thesis_inputs["market_understanding"]
     )
-    return round(max(0, min(20, (raw_five_point_score / 5) * 20)), 2)
+
+    return round(
+        max(0, min(20, (raw_score / 5) * 20)),
+        2
+    )
 
 
 def _openai_thesis_points(trades):
@@ -362,34 +375,159 @@ def _openai_thesis_points(trades):
         return None
 
 
-def _challenge_scorecard(portfolio_setup, active_holdings, trades, total_portfolio):
+def _challenge_scorecard(
+    portfolio_setup,
+    active_holdings,
+    trades,
+    total_portfolio,
+):
+    """
+    TradeIQ Challenge Scoring
+
+    Portfolio Score      = 40
+    Risk Score           = 20
+    Thesis Score         = 20
+    Execution Score      = 10
+    Strategy Score       = 10
+
+    Total                = 100
+    """
+
+    # --------------------------------------------------
+    # CLEAN SLATE
+    # --------------------------------------------------
     if not active_holdings:
-        return _zero_scorecard()
+        return {
+            "portfolio_score": 0.0,
+            "risk_score": 0.0,
+            "thesis_score": 0.0,
+            "execution_score": 0.0,
+            "strategy_score": 0.0,
+            "final_score": 0.0,
+            "feedback": (
+                "No active holdings. "
+                "Scores remain 0 until positions are opened."
+            ),
+            "source": "tradeiq-rubric",
+        }
 
-    total_capital = float(portfolio_setup.total_capital or 10000)
-    return_on_capital = ((total_portfolio - total_capital) / total_capital) * 100 if total_capital else 0.0
+    total_capital = float(
+        portfolio_setup.total_capital or 10000
+    )
 
-    trades_by_ticker = _latest_trade_by_ticker(trades)
+    # --------------------------------------------------
+    # PORTFOLIO SCORE (40)
+    # --------------------------------------------------
+    return_on_capital = (
+        ((total_portfolio - total_capital) / total_capital) * 100
+        if total_capital > 0
+        else 0
+    )
+
+    portfolio_score = round(
+        max(
+            0,
+            min(
+                40,
+                20 + return_on_capital
+            )
+        ),
+        2,
+    )
+
+    # --------------------------------------------------
+    # RISK SCORE (20)
+    # --------------------------------------------------
+    latest_trade_lookup = _latest_trade_by_ticker(trades)
+
     sectors = {
-        trades_by_ticker.get((h.stock_ticker or "").upper()).sector
+        latest_trade_lookup.get(
+            (h.stock_ticker or "").upper()
+        ).sector
         for h in active_holdings
-        if trades_by_ticker.get((h.stock_ticker or "").upper())
-        and trades_by_ticker.get((h.stock_ticker or "").upper()).sector
+        if latest_trade_lookup.get(
+            (h.stock_ticker or "").upper()
+        )
+        and latest_trade_lookup.get(
+            (h.stock_ticker or "").upper()
+        ).sector
     }
-    sector_diversity_score = 10 if len(sectors) >= 3 else len(sectors) * 3
-    volume_buffer = 5 if len(active_holdings) >= 3 else 0
 
-    portfolio_score = round(max(10, min(40, 20 + (return_on_capital - 2.0) * 8)))
-    risk_score = round(max(5, min(20, 10 + sector_diversity_score + volume_buffer)))
+    sector_count = len(sectors)
 
-    thesis_texts = [t.thesis.strip() for t in trades if t.thesis and t.thesis.strip()]
-    thesis_score = _openai_thesis_points(trades)
-    if thesis_score is None:
-        thesis_score = _local_thesis_points(thesis_texts)
+    if sector_count >= 3:
+        risk_score = 20
 
-    execution_score = round(max(5, min(10, 8)))
-    strategy_score = round(max(5, min(10, 7 + min(3, len(active_holdings)))))
-    final_score = round(portfolio_score + risk_score + thesis_score + execution_score + strategy_score, 2)
+    elif sector_count == 2:
+        risk_score = 14
+
+    elif sector_count == 1:
+        risk_score = 8
+
+    else:
+        risk_score = 0
+
+    # --------------------------------------------------
+    # THESIS SCORE (20)
+    # --------------------------------------------------
+    thesis_texts = [
+        t.thesis.strip()
+        for t in trades
+        if t.thesis and t.thesis.strip()
+    ]
+
+    if not thesis_texts:
+        thesis_score = 0
+
+    else:
+        ai_score = _openai_thesis_points(trades)
+
+        if ai_score is not None:
+            thesis_score = ai_score
+        else:
+            thesis_score = 15.0
+
+    thesis_score = round(
+        max(0, min(20, thesis_score)),
+        2,
+    )
+
+    # --------------------------------------------------
+    # EXECUTION SCORE (10)
+    # --------------------------------------------------
+    execution_score = 8.0
+
+    # --------------------------------------------------
+    # STRATEGY SCORE (10)
+    # --------------------------------------------------
+    position_count = len(active_holdings)
+
+    if position_count >= 5:
+        strategy_score = 10
+
+    elif position_count >= 3:
+        strategy_score = 8
+
+    elif position_count >= 2:
+        strategy_score = 6
+
+    elif position_count == 1:
+        strategy_score = 4
+
+    else:
+        strategy_score = 0
+
+    # --------------------------------------------------
+    # FINAL SCORE
+    # --------------------------------------------------
+    final_score = round(
+        portfolio_score
+        + risk_score
+        + thesis_score
+        + execution_score
+        + strategy_score,
+        2,
+    )
 
     return {
         "portfolio_score": float(portfolio_score),
@@ -398,10 +536,15 @@ def _challenge_scorecard(portfolio_setup, active_holdings, trades, total_portfol
         "execution_score": float(execution_score),
         "strategy_score": float(strategy_score),
         "final_score": float(final_score),
-        "feedback": "Portfolio score uses live ROC; risk uses sector diversity and position buffer; thesis uses OpenAI when configured or a local rubric fallback; execution and strategy use challenge baselines.",
+        "feedback": (
+            "Portfolio score based on Return on Capital. "
+            "Risk score based on sector diversification. "
+            "Thesis score based on AI evaluation or baseline. "
+            "Execution score baseline 8. "
+            "Strategy score rewards portfolio expansion."
+        ),
         "source": "tradeiq-rubric",
     }
-
 
 def _zero_scorecard():
     return {
@@ -447,6 +590,7 @@ def _score_payload(user_id):
     trades = TradeLog.query.filter_by(user_id=user_id).all()
     holdings = Holding.query.filter_by(user_id=user_id).all()
     active_holdings = _refresh_active_holdings(holdings)
+    db.session.flush()
 
     total_capital = float(portfolio.total_capital or 10000)
     cash_balance = float(portfolio.cash_balance)

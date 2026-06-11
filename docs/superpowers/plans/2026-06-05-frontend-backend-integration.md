@@ -190,19 +190,17 @@ export const market = {
 };
 
 // ── Analytics ──────────────────────────────────────────────────────────────────
-export type BackendLeaderboardEntry = {
+export interface BackendLeaderboardEntry {
   user_id: string;
-  full_name: string | null;
-  university: string | null;
-  week_number: number | null;
-  portfolio_score: number;
-  risk_score: number;
-  thesis_score: number;
-  execution_score: number;
-  strategy_score: number;
-  final_score: number;
-  rank_position: number | null;
-};
+  full_name?: string;
+  university?: string;
+  team_name?: string;          // ← add if missing
+  rank_position?: number;
+  final_score?: number;
+  portfolio_score?: number;
+  portfolio_value?: number;    // ← add if missing
+  week_number?: number;
+}
 
 export type BackendWeeklyScore = {
   week_number: number;
