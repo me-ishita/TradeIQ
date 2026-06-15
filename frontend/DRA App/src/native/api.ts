@@ -140,12 +140,17 @@ export const portfolio = {
 
   executeTrade(payload: {
     stock_ticker: string;
+    stock_name?: string;
+    sector?: string;
     trade_type: "BUY" | "SELL";
     quantity: number;
+    buy_price?: number;
+    current_sell_price?: number;
     tag1?: string;
     tag2?: string;
     tag3?: string;
     thesis?: string;
+    amount_invested?: number;
   }): Promise<{ message: string; trade: BackendTrade; cash_balance: number }> {
     return apiFetch("/portfolio/trade", {
       method: "POST",
@@ -221,6 +226,17 @@ export type BackendWeeklyScore = {
   rank_position: number | null;
 };
 
+export type BackendScoreCard = {
+  portfolio_score: number;
+  risk_score: number;
+  thesis_score: number;
+  execution_score: number;
+  strategy_score: number;
+  final_score: number;
+  feedback?: string;
+  source?: string;
+};
+
 export type BackendScoreMetrics = {
   portfolio_value: number;
   desk_return_expansion: number;
@@ -229,13 +245,44 @@ export type BackendScoreMetrics = {
   net_profit: number;
 };
 
+export type BackendScoreBreakdown = {
+  key: string;
+  label: string;
+  score: number | null;
+  max: number;
+  status: string;
+  detail: string;
+};
+
+export type BackendScoreInputs = {
+  portfolio_return_pct: number;
+  return_on_capital_pct: number;
+  benchmark_growth_pct: number;
+  net_profit: number;
+  total_capital: number;
+  cash_balance: number;
+  holdings_value: number;
+  active_holdings: number;
+  unique_sectors: number;
+  max_allocation: number;
+  total_trades: number;
+  trades_with_thesis: number;
+};
+
 export const analytics = {
   getLeaderboard(week?: number): Promise<{ week: number | null; count: number; entries: BackendLeaderboardEntry[] }> {
     const qs = week != null ? `?week=${week}` : "";
     return apiFetch(`/analytics/leaderboard${qs}`);
   },
 
-  getScores(userId: string): Promise<{ user_id: string; scores: BackendWeeklyScore[]; latest_metrics: BackendScoreMetrics | null }> {
+  getScores(userId: string): Promise<{
+    user_id: string;
+    scores: BackendWeeklyScore[];
+    latest_metrics: BackendScoreMetrics | null;
+    current_score: BackendScoreCard | null;
+    score_inputs: BackendScoreInputs | null;
+    score_breakdown: BackendScoreBreakdown[];
+  }> {
     return apiFetch(`/analytics/scores/${userId}`);
   },
 

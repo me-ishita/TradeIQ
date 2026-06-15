@@ -1,5 +1,7 @@
 import { Image } from "expo-image";
+import { AlertCircle, Eye, EyeOff } from "lucide-react-native";
 import type React from "react";
+import { useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import { brandLogo, C, font } from "../constants";
 import { tapHaptic } from "../utils";
@@ -17,12 +19,12 @@ export function GlassCard({
     <View
       style={[
         {
-          backgroundColor: "rgba(16,24,43,0.82)",
-          borderColor: C.border,
+          backgroundColor: "rgba(10,16,32,0.58)",
+          borderColor: `${accent}4d`,
           borderWidth: 1,
-          borderRadius: 18,
+          borderRadius: 16,
           overflow: "hidden",
-          boxShadow: `0 18px 44px rgba(0,0,0,0.30), 0 0 24px ${accent}1f`,
+          boxShadow: `0 18px 46px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.12), 0 0 30px ${accent}33`,
         } as object,
         style,
       ]}
@@ -36,10 +38,10 @@ export function SectionTitle({ title, accent = C.cyan, right }: { title: string;
   return (
     <View style={{ gap: 8 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <Text selectable style={{ color: C.text1, fontFamily: font.medium, fontSize: 13, textTransform: "uppercase", flexShrink: 1, maxWidth: "58%" }}>
+        <Text selectable style={{ color: accent, fontFamily: font.heading, fontSize: 17, textTransform: "uppercase", flexShrink: 1, maxWidth: "58%" }}>
           {title}
         </Text>
-        <View style={{ flex: 1, minWidth: 34, height: 3, borderRadius: 3, backgroundColor: accent, opacity: 0.72 }} />
+        <View style={{ flex: 1, minWidth: 34, height: 2, borderRadius: 3, backgroundColor: accent, opacity: 0.86, boxShadow: `0 0 14px ${accent}` }} />
         {right}
       </View>
     </View>
@@ -73,16 +75,16 @@ export function AppButton({
         minHeight: 54,
         paddingHorizontal: 16,
         paddingVertical: 10,
-        borderRadius: 18,
+        borderRadius: 16,
         opacity: disabled ? 0.55 : 1,
-        backgroundColor: primary ? "rgba(30,230,163,0.11)" : gold ? "rgba(255,209,102,0.12)" : "rgba(255,255,255,0.06)",
+        backgroundColor: primary ? "rgba(30,230,163,0.13)" : gold ? "rgba(255,209,102,0.13)" : "rgba(255,255,255,0.075)",
         borderColor: primary ? "rgba(30,230,163,0.78)" : gold ? "rgba(255,209,102,0.62)" : C.border2,
         borderWidth: 1,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
         gap: 8,
-        boxShadow: primary ? "0 12px 28px rgba(30,230,163,0.16)" : gold ? "0 12px 28px rgba(255,209,102,0.12)" : "none",
+        boxShadow: primary ? "0 12px 30px rgba(30,230,163,0.22), inset 0 1px 0 rgba(255,255,255,0.16)" : gold ? "0 12px 30px rgba(255,209,102,0.18), inset 0 1px 0 rgba(255,255,255,0.14)" : "0 10px 24px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.12)",
       }}
     >
       <Text selectable style={{ color: primary ? C.green : gold ? C.gold : C.text0, fontFamily: font.medium, fontSize: 15, textAlign: "center", flexShrink: 1 }}>
@@ -100,6 +102,7 @@ export function Field({
   placeholder,
   keyboardType,
   secureTextEntry,
+  showPasswordToggle,
   multiline,
   error,
 }: {
@@ -109,28 +112,39 @@ export function Field({
   placeholder: string;
   keyboardType?: "default" | "email-address" | "phone-pad" | "numeric" | "decimal-pad";
   secureTextEntry?: boolean;
+  showPasswordToggle?: boolean;
   multiline?: boolean;
   error?: string;
 }) {
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const secure = Boolean(secureTextEntry && !passwordVisible);
   return (
     <View style={{ gap: 7 }}>
       <Text selectable style={{ color: C.text2, fontFamily: font.medium, fontSize: 11, textTransform: "uppercase" }}>
         {label}
       </Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#596582"
-        keyboardType={keyboardType}
-        secureTextEntry={secureTextEntry}
-        multiline={multiline}
+      <View
         style={{
           minHeight: multiline ? 104 : 50,
           borderRadius: 14,
           borderColor: error ? C.red : C.border,
           borderWidth: 1,
           backgroundColor: "rgba(255,255,255,0.055)",
+          flexDirection: "row",
+          alignItems: multiline ? "flex-start" : "center",
+        }}
+      >
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#596582"
+          keyboardType={keyboardType}
+          secureTextEntry={secure}
+          multiline={multiline}
+          style={{
+          flex: 1,
+          minHeight: multiline ? 104 : 48,
           color: C.text0,
           fontFamily: font.regular,
           fontSize: 14,
@@ -138,12 +152,43 @@ export function Field({
           paddingVertical: 12,
           textAlignVertical: multiline ? "top" : "center",
         }}
-      />
+        />
+        {showPasswordToggle ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={passwordVisible ? "Hide password" : "Show password"}
+            onPress={() => setPasswordVisible((visible) => !visible)}
+            style={{ width: 46, minHeight: 48, alignItems: "center", justifyContent: "center" }}
+          >
+            {passwordVisible ? <EyeOff size={18} color={C.text1} /> : <Eye size={18} color={C.text1} />}
+          </TouchableOpacity>
+        ) : null}
+      </View>
       {error ? (
-        <Text selectable style={{ color: C.red, fontFamily: font.medium, fontSize: 11 }}>
-          {error}
-        </Text>
+        <ErrorText message={error} />
       ) : null}
+    </View>
+  );
+}
+
+export function ErrorText({ message }: { message: string }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+      <AlertCircle size={14} color={C.red} />
+      <Text selectable style={{ color: C.red, fontFamily: font.medium, fontSize: 11, flex: 1, lineHeight: 16 }}>
+        {message}
+      </Text>
+    </View>
+  );
+}
+
+export function ErrorNotice({ message }: { message: string }) {
+  return (
+    <View style={{ flexDirection: "row", gap: 9, alignItems: "flex-start", padding: 12, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,95,126,0.38)", backgroundColor: "rgba(255,95,126,0.10)" }}>
+      <AlertCircle size={17} color={C.red} />
+      <Text selectable style={{ color: C.red, fontFamily: font.medium, fontSize: 12, lineHeight: 17, flex: 1 }}>
+        {message}
+      </Text>
     </View>
   );
 }
@@ -177,12 +222,14 @@ export function HeaderMini({ title, subtitle }: { title: string; subtitle: strin
     <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 8 }}>
       <Image source={brandLogo} style={{ width: 42, height: 42, borderRadius: 12 }} />
       <View style={{ flex: 1 }}>
-        <Text selectable style={{ color: C.text0, fontFamily: font.medium, fontSize: 20 }}>
+        <Text selectable style={{ color: C.text0, fontFamily: font.heading, fontSize: 25, textTransform: "uppercase" }}>
           {title}
         </Text>
-        <Text selectable style={{ color: C.text2, fontFamily: font.regular, fontSize: 12, marginTop: 2 }}>
-          {subtitle}
-        </Text>
+        {subtitle ? (
+          <Text selectable style={{ color: C.text2, fontFamily: font.regular, fontSize: 12, marginTop: 2 }}>
+            {subtitle}
+          </Text>
+        ) : null}
       </View>
     </View>
   );

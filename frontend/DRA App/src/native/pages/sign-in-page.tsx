@@ -4,7 +4,7 @@ import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { C, font } from "../constants";
 import type { UserData } from "../types";
-import { AppButton, Field, GlassCard, HeaderMini } from "../components/ui";
+import { AppButton, ErrorNotice, Field, GlassCard, HeaderMini } from "../components/ui";
 
 export function SignInPage({ onSubmit, onBack }: { onSubmit: (email: string, password: string) => Promise<UserData | string | null>; onBack: () => void }) {
   const [email, setEmail] = useState("");
@@ -30,7 +30,7 @@ export function SignInPage({ onSubmit, onBack }: { onSubmit: (email: string, pas
             Back
           </Text>
         </TouchableOpacity>
-        <HeaderMini title="Log In" subtitle="Use your email and password" />
+        <HeaderMini title="Login to your Account" subtitle="" />
         <GlassCard style={{ padding: 18, gap: 15 }} accent={C.cyan}>
           <Field label="Email" value={email} onChangeText={(value) => {
             setError("");
@@ -39,11 +39,9 @@ export function SignInPage({ onSubmit, onBack }: { onSubmit: (email: string, pas
           <Field label="Password" value={password} onChangeText={(value) => {
             setError("");
             setPassword(value);
-          }} placeholder="Your password" secureTextEntry />
+          }} placeholder="Your password" secureTextEntry showPasswordToggle />
           {error ? (
-            <Text selectable style={{ color: C.red, fontFamily: font.medium, fontSize: 12 }}>
-              {error}
-            </Text>
+            <ErrorNotice message={error} />
           ) : null}
           <AppButton label={submitting ? "Signing In..." : "Sign In"} onPress={handleSubmit} disabled={submitting || !email.trim() || !password.trim()} icon={<LogIn size={18} color={C.green} />} />
         </GlassCard>

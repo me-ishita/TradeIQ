@@ -39,15 +39,15 @@ export function LandingPage({ onExplore }: { onExplore: () => void }) {
               Paper capital $10,000 | Educational simulation
             </Text>
           </View>
-          <Text selectable style={{ color: C.text0, fontFamily: font.medium, fontSize: 24, lineHeight: 31, textAlign: "center", maxWidth: 760 }}>
+          <Text selectable style={{ color: C.silver, fontFamily: font.headingHeavy, fontSize: 31, lineHeight: 36, textAlign: "center", maxWidth: 760, textTransform: "uppercase", textShadowColor: "rgba(255,255,255,0.52)", textShadowRadius: 14, textShadowOffset: { width: 0, height: 1 } }}>
             Investment Banking Sales & Trading Risk Challenge
           </Text>
           <Text selectable style={{ color: C.text1, fontFamily: font.regular, fontSize: 15, lineHeight: 23, textAlign: "center", maxWidth: 640 }}>
             Build a portfolio, defend your strategy, and compete in a premium fintech simulation designed for students.
           </Text>
 
-          <View style={{ borderRadius: 18, overflow: "hidden", borderColor: "rgba(30,230,163,0.42)", borderWidth: 1, boxShadow: "0 18px 45px rgba(0,0,0,0.32)" }}>
-            <Image source={prizePoolImage} contentFit="cover" style={{ width: "100%", aspectRatio: 2.2 }} />
+          <View style={{ width: "100%", maxWidth: 820, borderRadius: 16, overflow: "hidden", borderColor: "rgba(49,230,255,0.48)", borderWidth: 1, backgroundColor: "rgba(5,8,18,0.62)", boxShadow: "0 18px 50px rgba(49,230,255,0.16), inset 0 1px 0 rgba(255,255,255,0.14)" }}>
+            <Image source={prizePoolImage} contentFit="contain" style={{ width: "100%", aspectRatio: 1.82 }} />
           </View>
 
           <View style={{ marginTop: 10, gap: 10 }}>

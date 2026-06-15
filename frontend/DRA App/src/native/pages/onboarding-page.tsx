@@ -49,7 +49,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           <View style={{ width: 66, height: 66, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: `${item.color}22`, borderColor: `${item.color}55`, borderWidth: 1 }}>
             <Icon size={32} color={item.color} />
           </View>
-          <Text selectable style={{ color: C.text0, fontFamily: font.medium, fontSize: 24 }}>
+          <Text selectable style={{ color: C.text0, fontFamily: font.heading, fontSize: 28, textTransform: "uppercase" }}>
             {item.title}
           </Text>
           <Text selectable style={{ color: C.text1, fontFamily: font.regular, fontSize: 14, lineHeight: 22 }}>

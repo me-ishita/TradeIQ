@@ -381,7 +381,7 @@ export function PortfolioBuilder({ userData, onSubmitSuccess }: { userData: User
     const draft = await savePortfolioDraft(studentId, setup, nextPositions);
     setSetup(draft.setup);
     setPositions(draft.positions);
-    setDraftStatus("Stock removed from the draft table.");
+    setDraftStatus(`Stock removed from the draft table. ${draft.positions.length} saved stock${draft.positions.length === 1 ? "" : "s"} remaining.`);
   };
 
   const saveDraft = async () => {
@@ -415,19 +415,25 @@ export function PortfolioBuilder({ userData, onSubmitSuccess }: { userData: User
     let successCount = 0;
     try {
       for (const position of positions) {
-        const rawPrice = parseFloat(position.buyPrice.replace(/[^0-9.]/g, ""));
+        const enteredPrice = parseFloat(position.buyPrice.replace(/[^0-9.]/g, ""));
         const rawAmount = parseFloat(position.amountInvested.replace(/[^0-9.]/g, ""));
+        const rawPrice = enteredPrice > 0 ? enteredPrice : 1;
         const quantity =
           rawPrice > 0 && rawAmount > 0 ? Math.max(1, Math.round(rawAmount / rawPrice)) : 1;
 
         await portfolio.executeTrade({
           stock_ticker: position.stockTicker,
+          stock_name: position.stockName || position.stockTicker,
+          sector: position.sector || undefined,
           trade_type: position.tradeType === "Buy" ? "BUY" : "SELL",
           quantity,
+          buy_price: rawPrice,
+          current_sell_price: parseFloat(position.currentSellPrice.replace(/[^0-9.]/g, "")) || rawPrice,
           tag1: position.tag1 === "(optional)" ? undefined : position.tag1 || undefined,
           tag2: position.tag2 === "(optional)" ? undefined : position.tag2 || undefined,
           tag3: position.tag3 === "(optional)" ? undefined : position.tag3 || undefined,
           thesis: position.thesis || undefined,
+          amount_invested: rawAmount > 0 ? rawAmount : undefined,
         });
         successCount++;
       }
@@ -437,8 +443,12 @@ export function PortfolioBuilder({ userData, onSubmitSuccess }: { userData: User
       } catch {
         setDraftStatus(`${successCount}/${positions.length} trade(s) submitted successfully. Score will update after the next scoring run.`);
       }
+      await savePortfolioDraft(studentId, setup, []);
       setPositions([]);
       resetCurrentPosition(0);
+      portfolio.getSummary(userData.studentId)
+        .then((s) => setCapitalAmount(s.total_capital))
+        .catch(() => {});
       onSubmitSuccess?.();
     } catch (err) {
       setDraftStatus(
@@ -472,7 +482,7 @@ export function PortfolioBuilder({ userData, onSubmitSuccess }: { userData: User
       ) : null}
 
       <View>
-        <Text selectable style={{ color: C.text0, fontFamily: font.medium, fontSize: 25 }}>
+        <Text selectable style={{ color: C.text0, fontFamily: font.heading, fontSize: 29, textTransform: "uppercase" }}>
           Portfolio Setup
         </Text>
       </View>
@@ -617,7 +627,7 @@ export function PortfolioBuilder({ userData, onSubmitSuccess }: { userData: User
           <AppButton label="Submit" onPress={() => {
             void submitToBackend();
             setSubmitted(true);
-          }} disabled={overLimit || positions.length === 0} />
+          }} disabled={positions.length === 0} />
         </View>
       </View>
     </View>

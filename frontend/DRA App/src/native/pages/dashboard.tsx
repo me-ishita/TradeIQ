@@ -134,7 +134,7 @@ export function Dashboard({ userName, studentId }: { userName: string; studentId
   return (
     <View style={{ gap: 16 }}>
       <View>
-        <Text selectable style={{ color: C.text0, fontFamily: font.medium, fontSize: 25 }}>
+        <Text selectable style={{ color: C.text0, fontFamily: font.heading, fontSize: 29, textTransform: "uppercase" }}>
           Welcome, {userName.split(" ")[0] || "Analyst"}
         </Text>
         <Text selectable style={{ color: C.text2, fontFamily: font.regular, fontSize: 13, marginTop: 4 }}>
@@ -149,9 +149,9 @@ export function Dashboard({ userName, studentId }: { userName: string; studentId
       ) : (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
           <StatCard label="Portfolio Value" value={portfolioValue} sub={pnlLabel} color={C.green} />
-          <StatCard label="Return" value={returnPct} sub={`vs $${summary?.total_capital.toFixed(0)} base`} color={C.cyan} />
-          <StatCard label="Holdings" value={String(summary?.holdings_count ?? 0)} sub="positions" color={C.purple} />
-          <StatCard label="Cash" value={cashLabel} sub="available" color={C.gold} />
+          <StatCard label="Available Cash" value={cashLabel} sub="ready to deploy" color={C.gold} />
+          <StatCard label="Portfolio Return" value={returnPct} sub={`vs $${summary?.total_capital.toFixed(0)} base`} color={C.cyan} />
+          <StatCard label="Weekly Performance" value={scoreLoading ? "..." : `${Math.round(latestScore?.final_score ?? 0)}/100`} sub="scorecard" color={C.purple} />
         </View>
       )}
 

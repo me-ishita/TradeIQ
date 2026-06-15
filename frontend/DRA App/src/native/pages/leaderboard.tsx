@@ -49,7 +49,7 @@ export function Leaderboard({ studentId }: { studentId?: string }) {
     <View style={{ gap: 16 }}>
       {/* Header */}
       <View>
-        <Text selectable style={{ color: C.text0, fontFamily: font.medium, fontSize: 25 }}>
+        <Text selectable style={{ color: C.text0, fontFamily: font.heading, fontSize: 29, textTransform: "uppercase" }}>
           Leaderboard
         </Text>
         <Text selectable style={{ color: C.text2, fontSize: 13, marginTop: 4 }}>
@@ -59,7 +59,7 @@ export function Leaderboard({ studentId }: { studentId?: string }) {
 
       {/* Summary stat cards */}
       <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
-        <StatCard label="1st Prize"    value="$1,000"                               sub="top score"    color={C.gold} />
+        <StatCard label="1st Prize" value="$1,000" sub="top score" color={C.gold} />
         <StatCard label="Participants" value={loading ? "…" : String(entries.length)} sub="registered" color={C.cyan} />
         <StatCard label="Top Score"    value={loading ? "…" : topScore.toFixed(1)}  sub="points / 100" color={C.green} />
       </View>
@@ -126,7 +126,6 @@ export function Leaderboard({ studentId }: { studentId?: string }) {
                     borderColor: isMe ? "rgba(49,230,255,0.30)" : "transparent",
                   }}
                 >
-                  {/* Rank badge */}
                   <View
                     style={{
                       width: 34,
@@ -144,7 +143,6 @@ export function Leaderboard({ studentId }: { studentId?: string }) {
                     </Text>
                   </View>
 
-                  {/* Name + university + team */}
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                       <Text selectable style={{ color: isMe ? C.cyan : C.text0, fontFamily: font.medium, fontSize: 14 }}>
@@ -162,7 +160,6 @@ export function Leaderboard({ studentId }: { studentId?: string }) {
                     </Text>
                   </View>
 
-                  {/* Score + portfolio value */}
                   <View style={{ alignItems: "flex-end", gap: 2 }}>
                     <Text selectable style={{ color: C.text0, fontFamily: font.mono, fontSize: 16, fontWeight: "700" }}>
                       {(entry.final_score ?? 0).toFixed(1)}

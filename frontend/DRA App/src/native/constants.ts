@@ -14,12 +14,16 @@ export const C = {
   green: "#1ee6a3",
   gold: "#ffd166",
   red: "#ff5f7e",
+  silver: "#dce6f4",
+  platinum: "#f8fbff",
   ink: "#070b14",
 } as const;
 
 export const font = {
-  regular: process.env.EXPO_OS === "ios" ? "System" : "sans-serif",
-  medium: process.env.EXPO_OS === "ios" ? "System" : "sans-serif-medium",
+  heading: "Neuton_700Bold",
+  headingHeavy: "Neuton_800ExtraBold",
+  regular: "Lora_400Regular",
+  medium: "Lora_600SemiBold",
   mono: process.env.EXPO_OS === "ios" ? "Menlo" : "monospace",
 };
 

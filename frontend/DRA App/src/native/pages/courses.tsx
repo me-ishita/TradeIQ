@@ -14,7 +14,7 @@ export function Courses() {
   return (
     <View style={{ gap: 16 }}>
       <View>
-        <Text selectable style={{ color: C.text0, fontFamily: font.medium, fontSize: 25 }}>
+        <Text selectable style={{ color: C.text0, fontFamily: font.heading, fontSize: 29, textTransform: "uppercase" }}>
           Courses
         </Text>
         <Text selectable style={{ color: C.text2, fontSize: 13, marginTop: 4 }}>

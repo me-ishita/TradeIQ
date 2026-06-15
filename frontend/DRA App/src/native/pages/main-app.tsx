@@ -9,7 +9,7 @@ import { clearActiveUser } from "../auth-store";
 import { clearMarketCache } from "../market-store";
 import { analytics } from "../api";
 import type { BackendWeeklyScore } from "../api";
-import { brandIcon, C, font, tradeIqLogo } from "../constants";
+import { brandIcon, C, font, prizePoolImage, tradeIqLogo } from "../constants";
 import type { IconType, MainTab, UserData } from "../types";
 import { MarketTicker } from "../components/market-ticker";
 import { GlassCard, Progress } from "../components/ui";
@@ -64,13 +64,14 @@ export function MainApp({ userData, onLogout }: { userData: UserData | null; onL
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg0 }} edges={["top", "left", "right"]}>
       <MarketTicker />
-      <View style={{ zIndex: 2, paddingHorizontal: 18, paddingVertical: 12, borderBottomColor: C.border, borderBottomWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(5,8,18,0.98)" }}>
+      <View style={{ zIndex: 2, paddingHorizontal: 18, paddingVertical: 12, borderBottomColor: "rgba(49,230,255,0.24)", borderBottomWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(5,8,18,0.86)", boxShadow: "0 10px 28px rgba(49,230,255,0.10)" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
           <Image source={brandIcon} contentFit="cover" style={{ width: 34, height: 34, borderRadius: 8 }} />
-          <Image source={tradeIqLogo} contentFit="contain" style={{ width: 132, height: 36 }} />
+          <Image source={tradeIqLogo} contentFit="contain" style={{ width: 138, height: 36 }} />
           
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
+          <Image source={prizePoolImage} contentFit="cover" style={{ width: width > 520 ? 116 : 74, height: 36, borderRadius: 10, borderWidth: 1, borderColor: "rgba(49,230,255,0.42)" }} />
           <Bell size={20} color={C.text1} />
           <TouchableOpacity onPress={() => setProfileOpen(true)} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.cyan, alignItems: "center", justifyContent: "center" }}>
             <Text selectable style={{ color: C.ink, fontFamily: font.medium, fontSize: 13 }}>
