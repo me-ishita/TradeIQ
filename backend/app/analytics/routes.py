@@ -485,7 +485,7 @@ def _challenge_scorecard(
         if ai_score is not None:
             thesis_score = ai_score
         else:
-            thesis_score = 15.0
+            thesis_score = _local_thesis_points(thesis_texts)
 
     thesis_score = round(
         max(0, min(20, thesis_score)),
@@ -539,12 +539,102 @@ def _challenge_scorecard(
         "feedback": (
             "Portfolio score based on Return on Capital. "
             "Risk score based on sector diversification. "
-            "Thesis score based on AI evaluation or baseline. "
+            "Thesis score based on AI evaluation or local thesis rubric. "
             "Execution score baseline 8. "
             "Strategy score rewards portfolio expansion."
         ),
         "source": "tradeiq-rubric",
     }
+
+
+def _score_status(score, baseline=False):
+    if score is None:
+        return "pending"
+    if score <= 0:
+        return "pending"
+    return "baseline" if baseline else "scored"
+
+
+def _score_breakdown(payload):
+    inputs = payload["inputs"]
+    scores = payload["scores"]
+    metrics = payload["metrics"]
+    active_holdings = int(inputs.get("active_holdings") or 0)
+    total_capital = float(inputs.get("total_capital") or 10000)
+    return_on_capital = float(inputs.get("return_on_capital_pct") or 0)
+    thesis_count = int(inputs.get("trades_with_thesis") or 0)
+
+    if active_holdings == 0:
+        return [
+            {
+                "key": "clean_slate",
+                "label": "Clean Slate Baseline",
+                "score": 0.0,
+                "max": 100,
+                "status": "active",
+                "detail": "No active holdings yet. Scores remain 0 until at least one position is opened.",
+            }
+        ]
+
+    return [
+        {
+            "key": "portfolio_score",
+            "label": "Portfolio Score",
+            "score": scores["portfolio_score"],
+            "max": 40,
+            "status": _score_status(scores["portfolio_score"]),
+            "detail": (
+                f"Portfolio value ${metrics['portfolio_value']:,.2f} versus starting capital "
+                f"${total_capital:,.2f}; return on capital {return_on_capital:.2f}%."
+            ),
+        },
+        {
+            "key": "risk_score",
+            "label": "Risk Management Score",
+            "score": scores["risk_score"],
+            "max": 20,
+            "status": _score_status(scores["risk_score"]),
+            "detail": (
+                f"{inputs['unique_sectors']} distinct active sector"
+                f"{'' if inputs['unique_sectors'] == 1 else 's'} represented. "
+                "Three or more earns full diversification points."
+            ),
+        },
+        {
+            "key": "thesis_score",
+            "label": "Thesis Score",
+            "score": scores["thesis_score"],
+            "max": 20,
+            "status": _score_status(scores["thesis_score"]),
+            "detail": (
+                f"{thesis_count} submitted thesis "
+                f"{'entry' if thesis_count == 1 else 'entries'} scored from clarity, financial logic, "
+                "risk awareness, and market understanding."
+            )
+            if thesis_count > 0
+            else "No submitted thesis text found for active trades yet.",
+        },
+        {
+            "key": "execution_score",
+            "label": "Execution Quality Score",
+            "score": scores["execution_score"],
+            "max": 10,
+            "status": _score_status(scores["execution_score"], baseline=True),
+            "detail": "Execution quality starts at 8 points once active positions exist.",
+        },
+        {
+            "key": "strategy_score",
+            "label": "Strategy Score",
+            "score": scores["strategy_score"],
+            "max": 10,
+            "status": _score_status(scores["strategy_score"]),
+            "detail": (
+                f"{active_holdings} active position"
+                f"{'' if active_holdings == 1 else 's'} measured. "
+                "More well-spread active holdings improve this component."
+            ),
+        },
+    ]
 
 def _zero_scorecard():
     return {
@@ -751,15 +841,27 @@ def get_leaderboard():
 @analytics_bp.get("/scores/<string:user_id>")
 @jwt_required()
 def get_scores(user_id):
+    current_user_id = get_jwt_identity()
+    if current_user_id != user_id:
+        current_user = User.query.get(current_user_id)
+        if not current_user or current_user.role != "admin":
+            return jsonify({"error": "Not authorized to view scores for this user"}), 403
+
     scores = WeeklyScore.query\
         .filter_by(user_id=user_id)\
         .order_by(WeeklyScore.week_number.desc())\
         .all()
+    payload, error = _score_payload(user_id)
+    if error:
+        return error
 
     return jsonify({
         "user_id": user_id,
         "scores":  [s.to_dict() for s in scores],
-        "latest_metrics": _portfolio_metrics(user_id),
+        "latest_metrics": payload["metrics"],
+        "current_score": payload["scores"],
+        "score_inputs": payload["inputs"],
+        "score_breakdown": _score_breakdown(payload),
     }), 200
 
 

@@ -4,7 +4,7 @@ import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, useWi
 import { C, font, glossary, glossaryTerms, sectorOptions } from "../constants";
 import { getPortfolioDraft, savePortfolioDraft } from "../portfolio-store";
 import { analytics, market, portfolio } from "../api";
-import type { StockSearchResult } from "../api";
+import type { BackendTrade, StockSearchResult } from "../api";
 import type { Position, PortfolioSetup, UserData } from "../types";
 import { wordCount } from "../utils";
 import { AppButton, Field, GlassCard, Pill, SectionTitle } from "../components/ui";
@@ -47,6 +47,41 @@ function makeTrade(studentId: string, index: number, capital: number): Position 
     tag3: "(optional)",
     thesis: "",
   };
+}
+
+function money(value: number) {
+  return `$${Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+}
+
+function displayDate(value: string) {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString("en-GB");
+}
+
+function tradeToPosition(trade: BackendTrade, index: number, studentId: string): Position {
+  return {
+    id: `server-${trade.trade_id}`,
+    tradeId: trade.trade_id,
+    studentId,
+    addedBy: studentId,
+    tradeDate: displayDate(trade.trade_date),
+    stockTicker: trade.stock_ticker ?? "",
+    stockName: trade.stock_name ?? trade.stock_ticker ?? "",
+    sector: trade.sector ?? "Technology",
+    allocationPercent: Number(trade.allocation_percent || 0),
+    amountInvested: money(trade.amount_invested),
+    buyPrice: String(trade.buy_price || ""),
+    currentSellPrice: String(trade.current_sell_price || trade.buy_price || ""),
+    tradeType: trade.trade_type === "SELL" ? "Sell" : "Buy",
+    tag1: trade.tag1 ?? "Earnings Play",
+    tag2: trade.tag2 ?? "Macro Tailwind",
+    tag3: trade.tag3 ?? "(optional)",
+    thesis: trade.thesis ?? "",
+  };
+}
+
+function isSubmittedPosition(position: Position) {
+  return position.id.startsWith("server-");
 }
 
 function OptionRow({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: (value: string) => void }) {
@@ -305,15 +340,44 @@ export function PortfolioBuilder({ userData, onSubmitSuccess }: { userData: User
   useEffect(() => {
     let active = true;
     setDraftStatus("Loading saved portfolio...");
-    getPortfolioDraft(studentId).then((draft) => {
-      if (!active) return;
-      if (draft) {
-        setSetup(draft.setup);
-        setPositions(draft.positions);
-        setCurrentPosition(makeTrade(studentId, draft.positions.length, capitalAmount));
-        setEditingId(null);
-        setDraftStatus(`Draft restored from ${new Date(draft.updatedAt).toLocaleString()}.`);
-      } else {
+    async function loadSavedPortfolio() {
+      try {
+        const draft = await getPortfolioDraft(studentId);
+        if (!active) return;
+        if (draft && draft.positions.length > 0) {
+          setSetup(draft.setup);
+          setPositions(draft.positions);
+          setCurrentPosition(makeTrade(studentId, draft.positions.length, capitalAmount));
+          setEditingId(null);
+          setDraftStatus(`Draft restored from ${new Date(draft.updatedAt).toLocaleString()}.`);
+          return;
+        }
+
+        if (userData?.studentId) {
+          const response = await portfolio.getTrades(userData.studentId);
+          if (!active) return;
+          const savedPositions = response.trades
+            .slice()
+            .reverse()
+            .map((trade, index) => tradeToPosition(trade, index, studentId));
+          if (savedPositions.length > 0) {
+            const nextSetup = draft?.setup ?? {
+              studentId,
+              totalCapital: "$10,000",
+              riskAppetite: "Moderate",
+              investmentHorizon: "1 Month",
+              competitionRound: "June 2026",
+            };
+            setSetup(nextSetup);
+            setPositions(savedPositions);
+            setCurrentPosition(makeTrade(studentId, savedPositions.length, capitalAmount));
+            setEditingId(null);
+            setDraftStatus(`${savedPositions.length} previously submitted stock${savedPositions.length === 1 ? "" : "s"} loaded.`);
+            return;
+          }
+        }
+
+        if (!active) return;
         setSetup({
           studentId,
           totalCapital: "$10,000",
@@ -325,12 +389,26 @@ export function PortfolioBuilder({ userData, onSubmitSuccess }: { userData: User
         setCurrentPosition(makeTrade(studentId, 0, capitalAmount));
         setEditingId(null);
         setDraftStatus("");
+      } catch (err) {
+        if (!active) return;
+        setSetup({
+          studentId,
+          totalCapital: "$10,000",
+          riskAppetite: "Moderate",
+          investmentHorizon: "1 Month",
+          competitionRound: "June 2026",
+        });
+        setPositions([]);
+        setCurrentPosition(makeTrade(studentId, 0, capitalAmount));
+        setEditingId(null);
+        setDraftStatus(err instanceof Error ? `Saved stocks could not load: ${err.message}` : "Saved stocks could not load.");
       }
-    });
+    }
+    void loadSavedPortfolio();
     return () => {
       active = false;
     };
-  }, [studentId]);
+  }, [capitalAmount, studentId, userData?.studentId]);
 
   useEffect(() => {
     if (!userData?.studentId) return;
@@ -350,6 +428,7 @@ export function PortfolioBuilder({ userData, onSubmitSuccess }: { userData: User
   }, [editingId, userData?.studentId]);
 
   const totalAllocation = positions.reduce((sum, position) => sum + (Number(position.allocationPercent) || 0), 0);
+  const draftPositions = positions.filter((position) => !isSubmittedPosition(position));
   const uniqueSectors = new Set(positions.map((position) => position.sector).filter(Boolean)).size;
   const overLimit = totalAllocation > 100;
   const meetsMin = uniqueSectors >= 3 && positions.every((position) => position.allocationPercent <= 30);
@@ -414,7 +493,12 @@ export function PortfolioBuilder({ userData, onSubmitSuccess }: { userData: User
     setDraftStatus("Submitting trades to server...");
     let successCount = 0;
     try {
-      for (const position of positions) {
+      if (draftPositions.length === 0) {
+        setDraftStatus("No new draft stocks to submit. Previously submitted stocks are already saved.");
+        return;
+      }
+
+      for (const position of draftPositions) {
         const enteredPrice = parseFloat(position.buyPrice.replace(/[^0-9.]/g, ""));
         const rawAmount = parseFloat(position.amountInvested.replace(/[^0-9.]/g, ""));
         const rawPrice = enteredPrice > 0 ? enteredPrice : 1;
@@ -439,20 +523,26 @@ export function PortfolioBuilder({ userData, onSubmitSuccess }: { userData: User
       }
       try {
         await analytics.computeScores(userData.studentId);
-        setDraftStatus(`${successCount}/${positions.length} trade(s) submitted successfully. Score and leaderboard updated.`);
+        setDraftStatus(`${successCount}/${draftPositions.length} trade(s) submitted successfully. Score and leaderboard updated.`);
       } catch {
-        setDraftStatus(`${successCount}/${positions.length} trade(s) submitted successfully. Score will update after the next scoring run.`);
+        setDraftStatus(`${successCount}/${draftPositions.length} trade(s) submitted successfully. Score will update after the next scoring run.`);
       }
       await savePortfolioDraft(studentId, setup, []);
-      setPositions([]);
-      resetCurrentPosition(0);
+      const response = await portfolio.getTrades(userData.studentId);
+      const savedPositions = response.trades
+        .slice()
+        .reverse()
+        .map((trade, index) => tradeToPosition(trade, index, studentId));
+      setPositions(savedPositions);
+      resetCurrentPosition(savedPositions.length);
       portfolio.getSummary(userData.studentId)
         .then((s) => setCapitalAmount(s.total_capital))
         .catch(() => {});
+      setSubmitted(true);
       onSubmitSuccess?.();
     } catch (err) {
       setDraftStatus(
-        `${successCount}/${positions.length} submitted. Error: ${err instanceof Error ? err.message : "Submission failed"}`
+        `${successCount}/${draftPositions.length} submitted. Error: ${err instanceof Error ? err.message : "Submission failed"}`
       );
     }
   }
@@ -626,8 +716,7 @@ export function PortfolioBuilder({ userData, onSubmitSuccess }: { userData: User
         <View style={{ flex: 1 }}>
           <AppButton label="Submit" onPress={() => {
             void submitToBackend();
-            setSubmitted(true);
-          }} disabled={positions.length === 0} />
+          }} disabled={draftPositions.length === 0} />
         </View>
       </View>
     </View>
