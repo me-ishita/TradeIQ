@@ -11,18 +11,13 @@ load_dotenv()
 def _build_connect_args():
     if os.getenv("DB_SSL", "false").lower() != "true":
         return {}
+    import ssl
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return {"ssl": ctx}
 
-    ssl_args = {"check_hostname": os.getenv("DB_SSL_VERIFY", "true").lower() == "true"}
-    ssl_ca = os.getenv("DB_SSL_CA")
-    ssl_ca_pem = os.getenv("DB_SSL_CA_PEM")
-    if ssl_ca_pem:
-        ssl_path = Path(gettempdir()) / "tradeiq-db-ca.pem"
-        ssl_path.write_text(ssl_ca_pem, encoding="utf-8")
-        ssl_args["ca"] = str(ssl_path)
-    elif ssl_ca:
-        ssl_args["ca"] = ssl_ca
 
-    return {"ssl": ssl_args}
 
 
 class Config:
