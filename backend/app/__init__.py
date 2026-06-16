@@ -9,7 +9,6 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object(get_config())
 
-    # Build DB URI at runtime so Render's env vars are loaded
     app.config["SQLALCHEMY_DATABASE_URI"] = str(URL.create(
         "mysql+pymysql",
         username=os.getenv("DB_USER", "root"),
@@ -22,12 +21,10 @@ def create_app() -> Flask:
         "connect_args": _build_connect_args()
     }
 
-    # Extensions
     db.init_app(app)
     jwt.init_app(app)
     cors.init_app(app, resources={r"/*": {"origins": "*"}})
 
-    # Blueprints
     from app.auth.routes      import auth_bp
     from app.market.routes    import market_bp
     from app.portfolio.routes import portfolio_bp
@@ -37,10 +34,6 @@ def create_app() -> Flask:
     app.register_blueprint(market_bp)
     app.register_blueprint(portfolio_bp)
     app.register_blueprint(analytics_bp)
-
-    if os.getenv("AUTO_CREATE_TABLES", "false").lower() == "true":
-        with app.app_context():
-            db.create_all()
 
     @app.get("/health")
     def health():
