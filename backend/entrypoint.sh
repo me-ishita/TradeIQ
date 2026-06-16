@@ -24,28 +24,5 @@ print("ERROR: MySQL did not start within 60s.", file=sys.stderr)
 sys.exit(1)
 PYEOF
 
-echo "Applying database schema..."
-python - <<'PYEOF'
-import pymysql, os, sys
-
-host     = os.getenv("DB_HOST", "localhost")
-port     = int(os.getenv("DB_PORT", "3306"))
-user     = os.getenv("DB_USER", "root")
-password = os.getenv("DB_PASSWORD", "")
-
-try:
-    conn = pymysql.connect(host=host, port=port, user=user, password=password)
-    cursor = conn.cursor()
-    with open("/app/migrations/schema.sql") as f:
-        sql = f.read()
-    for stmt in [s.strip() for s in sql.split(";") if s.strip()]:
-        cursor.execute(stmt)
-    conn.commit()
-    conn.close()
-    print("Schema applied successfully.")
-except Exception as e:
-    print(f"ERROR applying schema: {e}", file=sys.stderr)
-    sys.exit(1)
-PYEOF
-
-exec flask run --host=0.0.0.0 --port=5000
+echo "Starting backend on port ${PORT:-5000}..."
+exec gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 2 --threads 4 run:app
