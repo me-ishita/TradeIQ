@@ -1,24 +1,20 @@
 from flask import Flask
-import os
-from sqlalchemy.engine import URL
-from config.settings import get_config, _build_connect_args
 from app.extensions import db, jwt, cors
 
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    app.config.from_object(get_config())
 
-    app.config["SQLALCHEMY_DATABASE_URI"] = str(URL.create(
-        "mysql+pymysql",
-        username=os.getenv("DB_USER", "root"),
-        password=os.getenv("DB_PASSWORD", ""),
-        host=os.getenv("DB_HOST", "localhost"),
-        port=int(os.getenv("DB_PORT", "3306")),
-        database=os.getenv("DB_NAME", "tradeiq"),
-    ))
+    app.config["SECRET_KEY"] = "dev-secret"
+    app.config["JWT_SECRET_KEY"] = "dev-jwt-secret"
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SQLALCHEMY_DATABASE_URI"] = (
+        "mysql+pymysql://YdgqymojqpaKqJk.root:fRJ2LBHIjVMxsQL8"
+        "@gateway01.ap-southeast-1.prod.alicloud.tidbcloud.com:4000/tradeiq"
+        "?ssl_verify_cert=false&ssl_verify_identity=false"
+    )
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "connect_args": _build_connect_args()
+        "connect_args": {"ssl": {"check_hostname": False}}
     }
 
     db.init_app(app)
