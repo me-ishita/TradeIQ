@@ -1,12 +1,26 @@
 from flask import Flask
 import os
-from config.settings import get_config
+from sqlalchemy.engine import URL
+from config.settings import get_config, _build_connect_args
 from app.extensions import db, jwt, cors
 
 
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object(get_config())
+
+    # Build DB URI at runtime so Render's env vars are loaded
+    app.config["SQLALCHEMY_DATABASE_URI"] = str(URL.create(
+        "mysql+pymysql",
+        username=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASSWORD", ""),
+        host=os.getenv("DB_HOST", "localhost"),
+        port=int(os.getenv("DB_PORT", "3306")),
+        database=os.getenv("DB_NAME", "tradeiq"),
+    ))
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "connect_args": _build_connect_args()
+    }
 
     # Extensions
     db.init_app(app)
