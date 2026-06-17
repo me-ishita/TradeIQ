@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Digital Risk Academy",
-    "slug": "digital-risk-academy",
+    "name": "TradeIQ",
+    "slug": "tradeiq",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/imports/brand-icon.png",

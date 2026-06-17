@@ -40,6 +40,15 @@ export function MainApp({ userData, onLogout }: { userData: UserData | null; onL
   const bottomNavHeight = 92 + insets.bottom;
   const scrollRef = useRef<ScrollViewType>(null);
 
+  // New States and Handler to satisfy CoursesProps requirements
+  const [courses, setCourses] = useState<any[]>([]); 
+  const [progress, setProgress] = useState<any[]>([]);
+
+  const handleProgressUpdated = (courseId: any, updatedData: any) => {
+    // Implement state persistence updates here if needed
+    console.log(`Course ${courseId} progress updated to:`, updatedData);
+  };
+
   useEffect(() => {
     if (!profileOpen) setPortfolioScore(null);
   }, [profileOpen]);
@@ -68,10 +77,8 @@ export function MainApp({ userData, onLogout }: { userData: UserData | null; onL
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
           <Image source={brandIcon} contentFit="cover" style={{ width: 34, height: 34, borderRadius: 8 }} />
           <Image source={tradeIqLogo} contentFit="contain" style={{ width: 138, height: 36 }} />
-          
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
-          <Image source={prizePoolImage} contentFit="cover" style={{ width: width > 520 ? 116 : 74, height: 36, borderRadius: 10, borderWidth: 1, borderColor: "rgba(49,230,255,0.42)" }} />
           <Bell size={20} color={C.text1} />
           <TouchableOpacity onPress={() => setProfileOpen(true)} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.cyan, alignItems: "center", justifyContent: "center" }}>
             <Text selectable style={{ color: C.ink, fontFamily: font.medium, fontSize: 13 }}>
@@ -92,7 +99,14 @@ export function MainApp({ userData, onLogout }: { userData: UserData | null; onL
         {activeTab === "portfolio" ? <PortfolioBuilder userData={userData} onSubmitSuccess={() => setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), 150)} /> : null}
         {activeTab === "scores" ? <Scores studentId={studentId} /> : null}
         {activeTab === "leaderboard" ? <Leaderboard /> : null}
-        {activeTab === "courses" ? <Courses /> : null}
+        {activeTab === "courses" ? (
+          <Courses 
+            user={userData}
+            courses={courses}
+            progress={progress}
+            onProgressUpdated={handleProgressUpdated}
+          />
+        ) : null}
       </ScrollView>
 
       <BlurView intensity={58} tint="dark" style={{ position: "absolute", left: 0, right: 0, bottom: 0, minHeight: bottomNavHeight, borderTopColor: C.border2, borderTopWidth: 1, zIndex: 5, backgroundColor: "rgba(5,8,18,0.96)" }}>

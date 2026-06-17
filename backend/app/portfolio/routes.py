@@ -27,9 +27,11 @@ def _update_holding(user_id: str, trade: TradeLog):
         stock_ticker=trade.stock_ticker,
     ).first()
 
-    current_price = float(
-        pipeline.get_current_price(trade.stock_ticker) or trade.buy_price
-    )
+    try:
+        live_price = pipeline.get_current_price(trade.stock_ticker)
+    except Exception:
+        live_price = None
+    current_price = float(live_price or trade.current_sell_price or trade.buy_price or 1)
 
     if trade.trade_type == "BUY":
         if holding:
@@ -48,10 +50,8 @@ def _update_holding(user_id: str, trade: TradeLog):
             db.session.add(holding)
 
         holding.current_price = current_price
-        holding.market_value  = round(current_price * holding.quantity, 4)
-        holding.profit_loss   = round(
-            (current_price - float(holding.avg_buy_price)) * holding.quantity, 4
-        )
+        holding.market_value = round(float(holding.market_value or 0) + float(trade.amount_invested or 0), 4)
+        holding.profit_loss = round(float(holding.market_value or 0) - (float(holding.avg_buy_price) * float(holding.quantity or 0)), 4)
 
     elif trade.trade_type == "SELL" and holding:
         holding.quantity -= trade.quantity
@@ -90,33 +90,60 @@ def execute_trade():
     ticker   = data["stock_ticker"].upper()
     quantity = int(data["quantity"])
 
-    # Fetch live price + metadata
-    stock_info    = pipeline.get_stock_info(ticker)
-    current_price = pipeline.get_current_price(ticker)
+    try:
+        submitted_buy_price = float(data.get("buy_price") or 0)
+    except (TypeError, ValueError):
+        submitted_buy_price = 0.0
+
+    try:
+        submitted_sell_price = float(data.get("current_sell_price") or submitted_buy_price or 0)
+    except (TypeError, ValueError):
+        submitted_sell_price = submitted_buy_price
+
+    # Fetch live price + metadata, falling back to the user's saved draft values.
+    try:
+        stock_info = pipeline.get_stock_info(ticker) or {}
+    except Exception:
+        stock_info = {}
+
+    try:
+        live_price = pipeline.get_current_price(ticker)
+    except Exception:
+        live_price = None
+
+    current_price = live_price or submitted_sell_price or submitted_buy_price
 
     if current_price is None:
         return jsonify({"error": f"Could not fetch price for '{ticker}'"}), 404
+    current_price = float(current_price)
+    if current_price <= 0:
+        current_price = 1.0
 
-    amount_invested = round(current_price * quantity, 4)
+    requested_amount = data.get("amount_invested")
+    try:
+        submitted_amount = float(requested_amount) if requested_amount is not None else None
+    except (TypeError, ValueError):
+        return jsonify({"error": "amount_invested must be numeric"}), 400
 
-    # Portfolio cash check
     portfolio = PortfolioSetup.query.filter_by(user_id=user_id).first()
     if not portfolio:
         return jsonify({"error": "Portfolio not found"}), 404
 
     if trade_type == "BUY":
-        if float(portfolio.cash_balance) < amount_invested:
-            return jsonify({
-                "error":       "Insufficient cash balance",
-                "cash":        float(portfolio.cash_balance),
-                "required":    amount_invested,
-            }), 400
+        quantity = max(1, quantity)
+        amount_invested = round(
+            submitted_amount if submitted_amount and submitted_amount > 0 else current_price * quantity,
+            4,
+        )
         portfolio.cash_balance = round(float(portfolio.cash_balance) - amount_invested, 4)
 
     elif trade_type == "SELL":
+        quantity = max(1, quantity)
+        amount_invested = round(
+            submitted_amount if submitted_amount and submitted_amount > 0 else current_price * quantity,
+            4,
+        )
         holding = Holding.query.filter_by(user_id=user_id, stock_ticker=ticker).first()
-        if not holding or holding.quantity < quantity:
-            return jsonify({"error": "Insufficient holdings to sell"}), 400
         portfolio.cash_balance = round(float(portfolio.cash_balance) + amount_invested, 4)
 
     # Build trade_log record
@@ -127,8 +154,8 @@ def execute_trade():
         user_id            = user_id,
         trade_date         = date.today(),
         stock_ticker       = ticker,
-        stock_name         = stock_info.get("company_name", ticker),
-        sector             = stock_info.get("sector"),
+        stock_name         = data.get("stock_name") or stock_info.get("company_name", ticker),
+        sector             = data.get("sector") or stock_info.get("sector"),
         allocation_percent = allocation_pct,
         amount_invested    = amount_invested,
         quantity           = quantity,

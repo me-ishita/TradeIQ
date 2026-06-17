@@ -77,3 +77,27 @@ export type OverallScoreSummary = {
   finalScore: number;
   overallRank: number;
 };
+
+export interface Course {
+  course_id: number;
+  title: string;
+  description: string;
+  instructor_name: string;
+  instructor_title: string;
+  video_url: string;
+  thumbnail_url: string;
+  duration_minutes: number;
+  week_number: number;
+  category: 'Risk Management' | 'Technical Analysis' | 'Options' | 'Fixed Income' | 'Macro' | 'Portfolio Theory';
+  is_published: boolean;
+  created_at: string;
+}
+
+export interface CourseProgress {
+  id: number;
+  user_id: string;
+  course_id: number;
+  watched_percent: number;
+  completed: boolean;
+  completed_at?: string;
+}
