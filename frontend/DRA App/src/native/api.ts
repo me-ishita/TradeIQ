@@ -1,4 +1,4 @@
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5000";
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? "https://trade-iq-deploy.onrender.com";
 
 // ── Token storage ──────────────────────────────────────────────────────────────
 const TOKEN_KEY = "dra.jwtToken";

@@ -4,15 +4,39 @@ set -e
 echo "Waiting for MySQL at ${DB_HOST:-localhost}:${DB_PORT:-3306}..."
 python - <<'PYEOF'
 import pymysql, os, time, sys
+from pathlib import Path
+from tempfile import gettempdir
 
 host     = os.getenv("DB_HOST", "localhost")
 port     = int(os.getenv("DB_PORT", "3306"))
 user     = os.getenv("DB_USER", "root")
 password = os.getenv("DB_PASSWORD", "")
+use_ssl  = os.getenv("DB_SSL", "false").lower() == "true"
+ssl_ca   = os.getenv("DB_SSL_CA")
+ssl_ca_pem = os.getenv("DB_SSL_CA_PEM")
+verify   = os.getenv("DB_SSL_VERIFY", "true").lower() == "true"
+
+connect_kwargs = {
+    "host": host,
+    "port": port,
+    "user": user,
+    "password": password,
+    "connect_timeout": 2,
+}
+
+if use_ssl:
+    ssl_kwargs = {"check_hostname": verify}
+    if ssl_ca_pem:
+        ssl_path = Path(gettempdir()) / "tradeiq-db-ca.pem"
+        ssl_path.write_text(ssl_ca_pem, encoding="utf-8")
+        ssl_kwargs["ca"] = str(ssl_path)
+    elif ssl_ca:
+        ssl_kwargs["ca"] = ssl_ca
+    connect_kwargs["ssl"] = ssl_kwargs
 
 for attempt in range(30):
     try:
-        conn = pymysql.connect(host=host, port=port, user=user, password=password, connect_timeout=2)
+        conn = pymysql.connect(**connect_kwargs)
         conn.close()
         print(f"MySQL is ready at {host}:{port}")
         sys.exit(0)
@@ -24,28 +48,5 @@ print("ERROR: MySQL did not start within 60s.", file=sys.stderr)
 sys.exit(1)
 PYEOF
 
-echo "Applying database schema..."
-python - <<'PYEOF'
-import pymysql, os, sys
-
-host     = os.getenv("DB_HOST", "localhost")
-port     = int(os.getenv("DB_PORT", "3306"))
-user     = os.getenv("DB_USER", "root")
-password = os.getenv("DB_PASSWORD", "")
-
-try:
-    conn = pymysql.connect(host=host, port=port, user=user, password=password)
-    cursor = conn.cursor()
-    with open("/app/migrations/schema.sql") as f:
-        sql = f.read()
-    for stmt in [s.strip() for s in sql.split(";") if s.strip()]:
-        cursor.execute(stmt)
-    conn.commit()
-    conn.close()
-    print("Schema applied successfully.")
-except Exception as e:
-    print(f"ERROR applying schema: {e}", file=sys.stderr)
-    sys.exit(1)
-PYEOF
-
-exec flask run --host=0.0.0.0 --port=5000
+echo "Starting backend on port ${PORT:-5000}..."
+exec gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 2 --threads 4 run:app
